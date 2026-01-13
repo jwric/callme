@@ -1,10 +1,10 @@
 [package]
 name = "callme-cli"
-version = "0.1.0"
-edition = "2021"
-repository = { workspace = true }
-license = { workspace = true }
-authors = { workspace = true }
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+authors.workspace = true
 description = "make voicecalls over iroh (cli app)"
 
 [package.metadata.wix]
@@ -14,15 +14,15 @@ license = false
 eula = false
 
 [dependencies]
-anyhow = "1.0.100"
-clap = { version = "4.5.31", features = ["derive"] }
-callme = { version = "0.1.0", path = "../callme", default-features = false }
-tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread", "rt"] }
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter", "std"] }
-iroh = { version = "0.95.1", default-features = false }
-dialoguer = "0.11.0"
-n0-future = "0.3.2"
+anyhow.workspace = true
+clap.workspace = true
+callme.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "rt"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+iroh.workspace = true
+dialoguer.workspace = true
+n0-future.workspace = true
 
 [features]
 default = ["audio-processing"]
