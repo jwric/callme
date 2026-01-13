@@ -76,7 +76,7 @@ pub fn find_device(host: &cpal::Host, direction: Direction, name: Option<&str>) 
         if let Some(device) = iter()?.find(|x| {
             x.description()
                 .ok()
-                .map_or(false, |d| d.name().to_lowercase().contains("pipewire"))
+                .is_some_and(|d| d.name().to_lowercase().contains("pipewire"))
         }) {
             return anyhow::Ok(Some(device));
         };
@@ -94,7 +94,7 @@ pub fn find_device(host: &cpal::Host, direction: Direction, name: Option<&str>) 
     };
 
     let device = match &name {
-        Some(device) => iter()?.find(|x| x.description().map_or(false, |d| d.name() == *device)),
+        Some(device) => iter()?.find(|x| x.description().is_ok_and(|d| d.name() == *device)),
         None => default()?,
     };
     device.with_context(|| {
