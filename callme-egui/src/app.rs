@@ -429,19 +429,35 @@ impl Worker {
                     self.handle_incoming(conn).await?;
                 }
                 Some(res) = self.call_tasks.join_next(), if !self.call_tasks.is_empty() => {
-                    let (node_id, res) = res.expect("connection task panicked");
-                    if let Err(err) = res {
-                        warn!("connection with {} closed: {err:?}", node_id.fmt_short());
-                    } else {
-                        info!("connection with {} closed", node_id.fmt_short());
+                    match res {
+                        Ok((node_id, res)) => {
+                            if let Err(err) = res {
+                                warn!("connection with {} closed: {err:?}", node_id.fmt_short());
+                            } else {
+                                info!("connection with {} closed", node_id.fmt_short());
+                            }
+                            self.active_calls.remove(&node_id);
+                            self.emit(Event::SetCallState(node_id, CallState::Aborted))
+                                .await?;
+                        }
+                        Err(err) => {
+                            warn!("connection task panicked: {err}");
+                            // Try to clean up any state we can, but we don't know which node_id
+                            // The task panicked so we can't get the node_id from the result
+                        }
                     }
-                    self.active_calls.remove(&node_id);
-                    self.emit(Event::SetCallState(node_id, CallState::Aborted))
-                        .await?;
                 }
                 Some(res) = self.connect_tasks.join_next(), if !self.connect_tasks.is_empty() => {
-                    let (node_id, res) = res.expect("connect task panicked");
-                    self.handle_connected(node_id, res).await?;
+                    match res {
+                        Ok((node_id, res)) => {
+                            self.handle_connected(node_id, res).await?;
+                        }
+                        Err(err) => {
+                            warn!("connect task panicked: {err}");
+                            // Task panicked during connection attempt
+                            // We can't recover the node_id, so we just log the error
+                        }
+                    }
                 }
             }
         }

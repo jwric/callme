@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use iroh::{Endpoint, EndpointAddr, SecretKey};
@@ -17,6 +17,7 @@ pub async fn bind_endpoint() -> Result<Endpoint> {
         .secret_key(secret_key)
         .discovery(iroh::discovery::dns::DnsDiscovery::n0_dns())
         .alpns(vec![ALPN.to_vec()])
+        .relay_mode(iroh::RelayMode::Disabled)
         .bind()
         .await
         .map_err(Into::into)

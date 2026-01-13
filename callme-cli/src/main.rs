@@ -54,7 +54,20 @@ enum FeedbackMode {
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    // Initialize tracing subscriber with env filter support
+    // Set log level with RUST_LOG environment variable, e.g.:
+    // RUST_LOG=debug cargo run --bin callme-cli -- accept
+    // RUST_LOG=callme=trace cargo run --bin callme-cli -- connect <node_id>
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_line_number(true)
+        .with_level(true)
+        .init();
     let args = Args::parse();
     let audio_config = AudioConfig {
         input_device: args.input_device,

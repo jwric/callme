@@ -927,6 +927,7 @@ dependencies = [
  "futures-concurrency",
  "hound",
  "iroh",
+ "iroh-quinn",
  "iroh-roq",
  "n0-future",
  "opus",
@@ -3291,6 +3292,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "rustls",
  "rustls-pki-types",
+ "rustls-platform-verifier",
  "slab",
  "thiserror 2.0.17",
  "tinyvec",
@@ -3362,7 +3364,7 @@ dependencies = [
 [[package]]
 name = "iroh-roq"
 version = "0.1.0"
-source = "git+https://github.com/jwric/iroh-roq.git?branch=main#f408b3f3cc82125cb3b5823f135d2795ff687040"
+source = "git+https://github.com/jwric/iroh-roq.git?branch=main#140bfbb053a55d752ede815ed0910945d4cc2ecc"
 dependencies = [
  "anyhow",
  "iroh",
