@@ -2633,7 +2633,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.58.0",
 ]
 
 [[package]]
@@ -3055,7 +3055,7 @@ dependencies = [
 [[package]]
 name = "iroh-roq"
 version = "0.1.0"
-source = "git+https://github.com/jwric/iroh-roq.git?branch=main#140bfbb053a55d752ede815ed0910945d4cc2ecc"
+source = "git+https://github.com/jwric/iroh-roq.git?branch=main#711a8ab98cc27914f08227b99be3bd7d1e03c883"
 dependencies = [
  "anyhow",
  "iroh",
