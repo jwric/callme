@@ -23,7 +23,7 @@ impl ProtocolHandler for RtcProtocol {
     fn accept(
         &self,
         conn: iroh::endpoint::Connection,
-    ) -> impl Future<Output = Result<(), AcceptError>> + std::marker::Send {
+    ) -> impl Future<Output = Result<(), AcceptError>> + Send {
         let sender = self.sender.clone();
         async move {
             debug!("ProtocolHandler::accept: conn");
@@ -34,7 +34,7 @@ impl ProtocolHandler for RtcProtocol {
         .boxed()
     }
 
-    fn shutdown(&self) -> impl Future<Output = ()> + std::marker::Send {
+    fn shutdown(&self) -> impl Future<Output = ()> + Send {
         self.shutdown_token.cancel();
         async move {}.boxed()
     }
