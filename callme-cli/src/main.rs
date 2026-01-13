@@ -2,7 +2,7 @@ use callme::{
     audio::{AudioConfig, AudioContext},
     net,
     rtc::{handle_connection_with_audio_context, RtcConnection, RtcProtocol},
-    NodeId,
+    EndpointId,
 };
 use clap::Parser;
 use dialoguer::Confirm;
@@ -38,7 +38,7 @@ enum Command {
         auto: bool,
     },
     /// Make calls to remote nodes.
-    Connect { node_id: Vec<NodeId> },
+    Connect { node_id: Vec<EndpointId> },
     /// Create a debug feedback loop through an in-memory channel.
     Feedback { mode: Option<FeedbackMode> },
     /// List the available audio devices
@@ -69,11 +69,10 @@ async fn main() -> anyhow::Result<()> {
                 let proto = RtcProtocol::new(endpoint.clone());
                 let _router = Router::builder(endpoint.clone())
                     .accept(RtcProtocol::ALPN, proto.clone())
-                    .spawn()
-                    .await?;
+                    .spawn();
 
                 endpoint_shutdown = Some(endpoint.clone());
-                println!("our node id:\n{}", endpoint.node_id());
+                println!("our node id:\n{}", endpoint.id());
 
                 let audio_ctx = AudioContext::new(audio_config).await?;
 
@@ -82,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
                         handle_connection(audio_ctx, conn).await;
                         break;
                     } else {
-                        let peer = conn.transport().remote_node_id()?.fmt_short();
+                        let peer = conn.transport().remote_id().fmt_short();
                         let accept =
                             auto || confirm(format!("Incoming call from {peer}. Accept?")).await;
                         if accept {
@@ -157,7 +156,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn handle_connection(audio_ctx: AudioContext, conn: RtcConnection) {
-    let peer = conn.transport().remote_node_id().unwrap().fmt_short();
+    let peer = conn.transport().remote_id().fmt_short();
     if let Err(err) = handle_connection_with_audio_context(audio_ctx, conn).await {
         error!("connection from {peer} closed with error: {err:?}",)
     } else {

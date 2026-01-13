@@ -8,7 +8,7 @@ use callme::{
 };
 use eframe::NativeOptions;
 use egui::{Color32, RichText, Ui};
-use iroh::{protocol::Router, Endpoint, KeyParsingError, NodeId};
+use iroh::{protocol::Router, Endpoint, EndpointId, KeyParsingError};
 use tokio::task::JoinSet;
 use tracing::{info, warn};
 
@@ -26,12 +26,12 @@ enum UiSection {
 
 struct AppState {
     section: UiSection,
-    remote_node_id: Option<Result<NodeId, KeyParsingError>>,
+    remote_node_id: Option<Result<EndpointId, KeyParsingError>>,
     worker: WorkerHandle,
-    our_node_id: Option<NodeId>,
+    our_node_id: Option<EndpointId>,
     devices: callme::audio::Devices,
     audio_config: UiAudioConfig,
-    calls: BTreeMap<NodeId, CallState>,
+    calls: BTreeMap<EndpointId, CallState>,
 }
 
 struct UiAudioConfig {
@@ -148,20 +148,19 @@ impl AppState {
                     .clicked()
                 {
                     #[cfg(not(target_os = "android"))]
-                    let pasted = {
-                        arboard::Clipboard::new()
-                            .expect("failed to access clipboard")
-                            .get_text()
-                            .expect("failed to get text from clipboard")
-                    };
+                    let pasted = arboard::Clipboard::new()
+                        .ok()
+                        .and_then(|mut clip| clip.get_text().ok());
 
                     #[cfg(target_os = "android")]
-                    let pasted = {
-                        android_clipboard::get_text().expect("failed to get text from clipboard")
-                    };
+                    let pasted = android_clipboard::get_text().ok();
 
-                    let node_id = NodeId::from_str(&pasted);
-                    self.remote_node_id = Some(node_id);
+                    if let Some(pasted) = pasted {
+                        let node_id = EndpointId::from_str(&pasted);
+                        self.remote_node_id = Some(node_id);
+                    } else {
+                        warn!("Failed to access clipboard or clipboard is empty");
+                    }
                 }
             });
             if let Some(node_id) = self.remote_node_id.as_ref() {
@@ -170,7 +169,7 @@ impl AppState {
                         if ui.button("Call").clicked() {
                             self.cmd(Command::Call { node_id: *node_id });
                         }
-                        ui.label(fmt_node_id(&node_id.fmt_short()));
+                        ui.label(fmt_node_id(&node_id.fmt_short().to_string()));
                     }
                     Err(err) => {
                         ui.label(fmt_error(&format!("Invalid node id: {err}")));
@@ -184,7 +183,7 @@ impl AppState {
         if let Some(node_id) = &self.our_node_id {
             ui.horizontal(|ui| {
                 ui.label("Our node id:".to_string());
-                ui.label(fmt_node_id(&node_id.fmt_short()));
+                ui.label(fmt_node_id(&node_id.fmt_short().to_string()));
                 if ui
                     .button("📋 Copy")
                     .on_hover_text("Click to copy")
@@ -213,7 +212,7 @@ impl AppState {
             for (node_id, state) in &self.calls {
                 let node_id = *node_id;
                 ui.horizontal(|ui| {
-                    ui.label(fmt_node_id(&node_id.fmt_short()));
+                    ui.label(fmt_node_id(&node_id.fmt_short().to_string()));
                     ui.label(format!("{}", state));
                     if matches!(state, CallState::Incoming) {
                         if ui.button("Accept").clicked() {
@@ -311,8 +310,8 @@ fn fmt_error(text: &str) -> RichText {
 }
 
 enum Event {
-    EndpointBound(NodeId),
-    SetCallState(NodeId, CallState),
+    EndpointBound(EndpointId),
+    SetCallState(EndpointId, CallState),
 }
 
 #[derive(strum::Display)]
@@ -334,20 +333,20 @@ type UpdateCallback = Box<dyn Fn() + Send + 'static>;
 enum Command {
     SetUpdateCallback { callback: UpdateCallback },
     SetAudioConfig { audio_config: AudioConfig },
-    Call { node_id: NodeId },
-    HandleIncoming { node_id: NodeId, accept: bool },
-    Abort { node_id: NodeId },
+    Call { node_id: EndpointId },
+    HandleIncoming { node_id: EndpointId, accept: bool },
+    Abort { node_id: EndpointId },
 }
 
 struct Worker {
     command_rx: Receiver<Command>,
     event_tx: Sender<Event>,
-    active_calls: BTreeMap<NodeId, CallInfo>,
+    active_calls: BTreeMap<EndpointId, CallInfo>,
     update_callback: Option<UpdateCallback>,
     endpoint: Endpoint,
     handler: RtcProtocol,
-    call_tasks: JoinSet<(NodeId, Result<()>)>,
-    connect_tasks: JoinSet<(NodeId, Result<(RtcConnection, MediaTrack)>)>,
+    call_tasks: JoinSet<(EndpointId, Result<()>)>,
+    connect_tasks: JoinSet<(EndpointId, Result<(RtcConnection, MediaTrack)>)>,
     _router: Router,
     audio_context: Option<AudioContext>,
 }
@@ -398,8 +397,7 @@ impl Worker {
         let handler = RtcProtocol::new(endpoint.clone());
         let _router = Router::builder(endpoint.clone())
             .accept(RtcProtocol::ALPN, handler.clone())
-            .spawn()
-            .await?;
+            .spawn();
         Ok(Self {
             command_rx,
             event_tx,
@@ -415,8 +413,7 @@ impl Worker {
     }
 
     async fn run(&mut self) -> Result<()> {
-        self.emit(Event::EndpointBound(self.endpoint.node_id()))
-            .await?;
+        self.emit(Event::EndpointBound(self.endpoint.id())).await?;
         loop {
             tokio::select! {
                 command = self.command_rx.recv() => {
@@ -452,7 +449,7 @@ impl Worker {
     }
 
     async fn handle_incoming(&mut self, conn: RtcConnection) -> Result<()> {
-        let node_id = conn.transport().remote_node_id()?;
+        let node_id = conn.transport().remote_id();
         info!("incoming connection from {}", node_id.fmt_short());
         self.active_calls.insert(node_id, CallInfo::Incoming(conn));
         self.emit(Event::SetCallState(node_id, CallState::Incoming))
@@ -462,7 +459,7 @@ impl Worker {
 
     async fn handle_connected(
         &mut self,
-        node_id: NodeId,
+        node_id: EndpointId,
         conn: Result<(RtcConnection, MediaTrack)>,
     ) -> Result<()> {
         match conn {
@@ -480,7 +477,7 @@ impl Worker {
     }
 
     async fn accept_from_connect(&mut self, conn: RtcConnection, track: MediaTrack) -> Result<()> {
-        let node_id = conn.transport().remote_node_id()?;
+        let node_id = conn.transport().remote_id();
         self.active_calls
             .insert(node_id, CallInfo::Active(conn.clone()));
         self.emit(Event::SetCallState(node_id, CallState::Active))
@@ -507,7 +504,7 @@ impl Worker {
     }
 
     async fn accept_from_accept(&mut self, conn: RtcConnection) -> Result<()> {
-        let node_id = conn.transport().remote_node_id()?;
+        let node_id = conn.transport().remote_id();
         self.active_calls
             .insert(node_id, CallInfo::Active(conn.clone()));
         self.emit(Event::SetCallState(node_id, CallState::Active))

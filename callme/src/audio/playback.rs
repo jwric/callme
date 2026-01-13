@@ -54,7 +54,7 @@ impl AudioPlayback {
         std::thread::spawn(move || {
             if let Err(err) = audio_thread_priority::promote_current_thread_to_real_time(
                 buffer_size as u32,
-                ENGINE_FORMAT.sample_rate.0,
+                ENGINE_FORMAT.sample_rate,
             ) {
                 warn!("failed to set playback thread to realtime priority: {err:?}");
             }
@@ -189,8 +189,8 @@ fn start_playback_stream(
     processor.init_playback(config.channels as usize)?;
     let resampler = FixedResampler::new(
         NonZeroUsize::new(format.channel_count as usize).unwrap(),
-        SAMPLE_RATE.0,
-        format.sample_rate.0,
+        SAMPLE_RATE,
+        format.sample_rate,
         ResampleQuality::High,
         true,
     );
@@ -210,10 +210,7 @@ fn start_playback_stream(
             Err(cpal::BuildStreamError::StreamConfigNotSupported)
         }
     }?;
-    info!(
-        "start playback stream on {} with {format:?}",
-        device.name()?
-    );
+    info!("start playback stream on {} with {format:?}", device.id()?);
     stream.play()?;
     Ok(stream)
 }
@@ -250,7 +247,7 @@ fn build_playback_stream<S: dasp_sample::FromSample<f32> + cpal::SizedSample + D
                     .callback
                     .duration_since(&info.timestamp().playback)
                     .unwrap_or_default();
-                let resampler_delay = Duration::from_secs_f32(state.resampler.output_delay() as f32 / state.format.sample_rate.0 as f32);
+                let resampler_delay = Duration::from_secs_f32(state.resampler.output_delay() as f32 / state.format.sample_rate as f32);
                 output_delay + resampler_delay
             };
 

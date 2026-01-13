@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use cpal::{
     traits::{DeviceTrait, HostTrait},
-    BufferSize, Device, Host, SampleFormat, StreamConfig,
+    BufferSize, Device, DeviceId, Host, SampleFormat, StreamConfig,
     SupportedBufferSize::{Range, Unknown},
     SupportedStreamConfig, SupportedStreamConfigRange,
 };
@@ -50,12 +50,12 @@ pub fn list_devices() -> Result<Devices> {
     let host = cpal::default_host();
     let input = host
         .input_devices()?
-        .filter_map(|x| x.name().ok())
-        .collect();
+        .filter_map(|x| x.description().ok().map(|d| d.name().to_string()))
+        .collect::<Vec<_>>();
     let output = host
         .output_devices()?
-        .filter_map(|x| x.name().ok())
-        .collect();
+        .filter_map(|x| x.description().ok().map(|d| d.name().to_string()))
+        .collect::<Vec<_>>();
     Ok(Devices { input, output })
 }
 
@@ -73,7 +73,11 @@ pub fn find_device(host: &cpal::Host, direction: Direction, name: Option<&str>) 
     let default = || {
         // On linux, prefer the `pipewire` device, if available.
         #[cfg(target_os = "linux")]
-        if let Some(device) = iter()?.find(|x| x.name().ok().as_deref() == Some("pipewire")) {
+        if let Some(device) = iter()?.find(|x| {
+            x.description()
+                .ok()
+                .map_or(false, |d| d.name().to_lowercase().contains("pipewire"))
+        }) {
             return anyhow::Ok(Some(device));
         };
 
@@ -90,7 +94,7 @@ pub fn find_device(host: &cpal::Host, direction: Direction, name: Option<&str>) 
     };
 
     let device = match &name {
-        Some(device) => iter()?.find(|x| x.name().map(|y| &y == device).unwrap_or(false)),
+        Some(device) => iter()?.find(|x| x.description().map_or(false, |d| d.name() == *device)),
         None => default()?,
     };
     device.with_context(|| {
@@ -137,7 +141,7 @@ pub fn find_input_stream_config(
     device: &Device,
     format: &AudioFormat,
 ) -> Result<StreamConfigWithFormat> {
-    let d = device.name().unwrap();
+    let d = device.description().unwrap().name().to_string();
     debug!("find capture stream config for device {d} and format {format:?}");
     let mut supported_configs: Vec<_> = device
         .supported_input_configs()
@@ -167,7 +171,7 @@ pub fn find_output_stream_config(
     device: &Device,
     format: &AudioFormat,
 ) -> Result<StreamConfigWithFormat> {
-    let d = device.name().unwrap();
+    let d = device.description().unwrap().name().to_string();
     debug!("find playback stream config for device {d} and format {format:?}");
     let mut supported_configs: Vec<_> = device
         .supported_output_configs()

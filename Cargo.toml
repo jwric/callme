@@ -9,11 +9,7 @@ repository = "https://github.com/n0-computer/callme.git"
 license = "MIT OR Apache-2.0"
 
 [patch.crates-io]
-# make receive flows close on connection close: https://github.com/n0-computer/iroh-roq/pull/4
-iroh-roq = { git = "https://github.com/n0-computer/iroh-roq.git", branch = "fix/close-flows" }
-
-# fix android device names: https://github.com/RustAudio/cpal/pull/959
-cpal = { git = "https://github.com/Frando/cpal.git", branch = "feat/android-device-name" }
+iroh-roq = { git = "https://github.com/jwric/iroh-roq.git", branch = "main" }
 
 # fix android build: https://github.com/tonarino/webrtc-audio-processing/pull/47
 # replace failure with anyhow: https://github.com/tonarino/webrtc-audio-processing/pull/48

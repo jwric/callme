@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::{bail, Context, Result};
-use iroh::{Endpoint, NodeAddr, SecretKey};
+use iroh::{Endpoint, EndpointAddr, SecretKey};
 pub use iroh_roq::ALPN;
 
 use crate::rtc::RtcConnection;
@@ -11,12 +11,13 @@ pub async fn bind_endpoint() -> Result<Endpoint> {
         Ok(secret) => {
             SecretKey::from_str(&secret).expect("failed to parse secret key from IROH_SECRET")
         }
-        Err(_) => SecretKey::generate(&mut rand::rngs::OsRng),
+        Err(_) => SecretKey::generate(&mut rand::rng()),
     };
     Endpoint::builder()
         .secret_key(secret_key)
-        .discovery_n0()
+        .discovery(iroh::discovery::dns::DnsDiscovery::n0_dns())
         .alpns(vec![ALPN.to_vec()])
         .bind()
         .await
+        .map_err(Into::into)
 }

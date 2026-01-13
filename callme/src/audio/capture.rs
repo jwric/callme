@@ -66,7 +66,7 @@ impl AudioCapture {
         std::thread::spawn(move || {
             if let Err(err) = audio_thread_priority::promote_current_thread_to_real_time(
                 buffer_size as u32,
-                ENGINE_FORMAT.sample_rate.0,
+                ENGINE_FORMAT.sample_rate,
             ) {
                 warn!("failed to set capture thread to realtime priority: {err:?}");
             }
@@ -110,7 +110,7 @@ fn start_capture_stream(
     producer: Producer<f32>,
     processor: WebrtcAudioProcessor,
 ) -> Result<cpal::Stream> {
-    let d = device.name()?;
+    let d = device.id()?;
     let config = &stream_config.config;
 
     #[cfg(feature = "audio-processing")]
@@ -120,8 +120,8 @@ fn start_capture_stream(
 
     let resampler = FixedResampler::new(
         NonZeroUsize::new(ENGINE_FORMAT.channel_count as usize).unwrap(),
-        capture_format.sample_rate.0,
-        ENGINE_FORMAT.sample_rate.0,
+        capture_format.sample_rate,
+        ENGINE_FORMAT.sample_rate,
         ResampleQuality::High,
         true,
     );
@@ -190,7 +190,7 @@ fn build_capture_stream<S: dasp_sample::ToSample<f32> + cpal::SizedSample + Defa
                     .duration_since(&info.timestamp().capture)
                     .unwrap_or_default();
                 let resampler_delay = Duration::from_secs_f32(
-                    state.resampler.output_delay() as f32 / ENGINE_FORMAT.sample_rate.0 as f32,
+                    state.resampler.output_delay() as f32 / ENGINE_FORMAT.sample_rate as f32,
                 );
                 capture_delay + resampler_delay
             };

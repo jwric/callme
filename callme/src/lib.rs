@@ -6,7 +6,7 @@ pub mod net;
 pub mod rtc;
 
 pub use cpal;
-pub use iroh::NodeId;
+pub use iroh::{EndpointAddr, EndpointId};
 
 #[cfg(test)]
 mod tests {
@@ -32,8 +32,7 @@ mod tests {
         let proto = RtcProtocol::new(endpoint.clone());
         let router = Router::builder(endpoint)
             .accept(RtcProtocol::ALPN, proto.clone())
-            .spawn()
-            .await?;
+            .spawn();
         Ok((router, proto))
     }
 
@@ -42,7 +41,7 @@ mod tests {
     async fn smoke() -> TestResult {
         let (router1, rtc1) = build().await?;
         let (router2, rtc2) = build().await?;
-        let addr1 = router1.endpoint().node_addr().await?;
+        let addr1 = router1.endpoint().addr();
 
         let (conn1, conn2) = (rtc2.connect(addr1), rtc1.accept()).try_join().await?;
 

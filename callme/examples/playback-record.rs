@@ -32,17 +32,16 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
     let args = Args::parse();
     let endpoint = bind_endpoint().await?;
-    println!("node id: {}", endpoint.node_id());
+    println!("node id: {}", endpoint.id());
 
     let rtc = RtcProtocol::new(endpoint.clone());
     let _router = Router::builder(endpoint)
         .accept(RtcProtocol::ALPN, rtc.clone())
-        .spawn()
-        .await?;
+        .spawn();
 
     while let Some(conn) = rtc.accept().await? {
         info!("accepted");
-        let remote_node = conn.transport().remote_node_id()?;
+        let remote_node = conn.transport().remote_id();
         let now = Instant::now();
         let args = args.clone();
         info!(?remote_node, "connection established");
@@ -85,7 +84,7 @@ async fn handle_connection(conn: RtcConnection, args: Args) -> Result<()> {
         info!("incoming track");
         if let Some(dir) = &args.record_dir {
             tokio::fs::create_dir_all(&dir).await?;
-            let node_id = conn.transport().remote_node_id()?.fmt_short();
+            let node_id = conn.transport().remote_id().fmt_short();
             let suffix = id;
             let file_name = format!("{node_id}-{suffix}.wav");
             let file_path = dir.join(&file_name);

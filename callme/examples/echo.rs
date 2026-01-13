@@ -4,7 +4,7 @@ use anyhow::Result;
 use callme::net::bind_endpoint;
 use clap::Parser;
 use futures_concurrency::future::TryJoin;
-use iroh::{endpoint::Connection, NodeId};
+use iroh::{endpoint::Connection, EndpointId};
 use iroh_roq::{Session, VarInt, ALPN};
 use n0_future::TryFutureExt;
 use tracing::{info, trace, warn};
@@ -19,7 +19,7 @@ struct Args {
 
 #[derive(Debug, Parser)]
 enum Command {
-    Connect { node_id: NodeId },
+    Connect { node_id: EndpointId },
     Accept,
 }
 
@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
     let args = Args::parse();
     let endpoint = bind_endpoint().await?;
-    println!("node id: {}", endpoint.node_id());
+    println!("node id: {}", endpoint.id());
 
     let opts = Opts {
         delay: Duration::from_millis(args.delay.unwrap_or(200)),
@@ -69,7 +69,7 @@ struct Opts {
 }
 
 async fn handle_connection(conn: Connection, opts: Opts) -> Result<()> {
-    info!("new connection with {}", conn.remote_node_id()?);
+    info!("new connection with {}", conn.remote_id());
 
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
 

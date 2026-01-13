@@ -52,7 +52,7 @@ impl MediaTrackOpusDecoder {
         };
         let audio_format = AudioFormat::new2(OPUS_SAMPLE_RATE, channel_count as u16);
         let decoder =
-            opus::Decoder::new(OPUS_STREAM_PARAMS.sample_rate.0, channel_count.into()).unwrap();
+            opus::Decoder::new(OPUS_STREAM_PARAMS.sample_rate, channel_count.into()).unwrap();
         let buffer_size = audio_format.sample_count(DURATION_20MS);
         let decode_buf = vec![0.; buffer_size];
         let audio_buf = vec![];
@@ -178,7 +178,7 @@ pub struct MediaTrackOpusEncoder {
 
 impl MediaTrackOpusEncoder {
     pub fn new(track_channel_cap: usize, audio_format: AudioFormat) -> Result<(Self, MediaTrack)> {
-        debug_assert_eq!(audio_format.sample_rate.0, OPUS_SAMPLE_RATE);
+        debug_assert_eq!(audio_format.sample_rate, OPUS_SAMPLE_RATE);
         let (sender, receiver) = broadcast::channel(track_channel_cap);
         let channels = match audio_format.channel_count {
             1 => OpusChannels::Mono,
